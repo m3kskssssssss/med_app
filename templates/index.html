@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Сверка врачей — Medical API и каталог</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+    <a class="brand" href="/"><span class="brand-mark">+</span><span>МедСверка</span></a>
+</header>
+<main>
+    <section class="hero">
+        <div>
+            <p class="eyebrow">КОНТРОЛЬ КАЧЕСТВА ДАННЫХ</p>
+            <h1>Сверка карточек врачей</h1>
+            <p class="subtitle">Medical API и публичный каталог — в одном понятном списке.</p>
+        </div>
+        <form action="{{ url_for('refresh') }}" method="post" id="refresh-form">
+            <button class="refresh" id="refresh-button" type="submit"><span aria-hidden="true">↻</span> Обновить данные</button>
+        </form>
+    </section>
+
+    <div id="message" class="message error" {% if not error %}hidden{% endif %} role="alert">
+        <strong>Не удалось загрузить данные.</strong> <span id="error-text">{{ error }}</span>
+        <span>Проверьте ключ и подключение, затем нажмите «Обновить данные».</span>
+    </div>
+    <div id="loading" class="message loading" hidden role="status"><span class="spinner"></span> Загружаем свежие данные и сопоставляем записи…</div>
+
+    {% if not error %}
+    <section class="stats" aria-label="Сводка">
+        <div class="stat total"><span class="stat-label">Всего записей</span><strong>{{ doctors|length }}</strong><span class="stat-note">в общем списке</span></div>
+        <div class="stat"><span class="stat-label"><i class="dot green"></i> Совпало</span><strong>{{ counts.matched }}</strong><span class="stat-note">ФИО и специальность</span></div>
+        <div class="stat"><span class="stat-label"><i class="dot amber"></i> Возможно совпадение</span><strong>{{ counts.possible }}</strong><span class="stat-note">нужна проверка</span></div>
+        <div class="stat"><span class="stat-label"><i class="dot gray"></i> Только в одном</span><strong>{{ counts.api_only + counts.catalog_only }}</strong><span class="stat-note">API: {{ counts.api_only }} · каталог: {{ counts.catalog_only }}</span></div>
+    </section>
+
+    <section class="workspace">
+        <div class="list-panel">
+            <div class="source-note">Получено: <strong>{{ api_count }}</strong> из Medical API · <strong>{{ catalog_count }}</strong> из каталога ({{ catalog_pages }} страниц HTML)<br><span>Обновлено {{ updated_at.strftime('%d.%m.%Y в %H:%M') }}</span></div>
+            <div class="controls">
+                <label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Поиск по ФИО или специальности" aria-label="Поиск по врачам"></label>
+                <select id="status-filter" aria-label="Фильтр по статусу">
+                    <option value="all">Все статусы</option>
+                    <option value="matched">Совпало</option>
+                    <option value="possible">Возможно совпадение</option>
+                    <option value="api_only">Только в Medical API</option>
+                    <option value="catalog_only">Только в каталоге</option>
+                </select>
+            </div>
+            <div class="list-heading"><span>Врач</span><span>Статус</span></div>
+            <div id="doctor-list" class="doctor-list">
+                {% for doctor in doctors %}
+                <button class="doctor-row{% if loop.first %} selected{% endif %}" data-index="{{ doctor.index }}" data-status="{{ doctor.status }}" data-search="{{ (doctor.name ~ ' ' ~ doctor.specialty)|lower }}" type="button">
+                    <span class="doctor-main">
+                        <span class="doctor-avatar" aria-hidden="true">{{ doctor.name.split()[0][0] }}{{ doctor.name.split()[1][0] if doctor.name.split()|length > 1 else '' }}</span>
+                        <span class="doctor-summary">
+                            <strong>{{ doctor.name }}</strong>
+                            <span class="doctor-specialty">{{ doctor.specialty }}</span>
+                            {% if doctor.catalog and doctor.catalog.clinic %}<small>{{ doctor.catalog.clinic }}</small>{% endif %}
+                        </span>
+                    </span>
+                    <span class="doctor-meta">
+                        {% if doctor.catalog and doctor.catalog.price %}<strong class="doctor-price">{{ doctor.catalog.price }}</strong>{% endif %}
+                        <span class="badge {{ doctor.status }}">{% if doctor.status == 'matched' %}Совпало{% elif doctor.status == 'possible' %}Возможно{% elif doctor.status == 'api_only' %}Только API{% else %}Только каталог{% endif %}</span>
+                    </span>
+                </button>
+                {% endfor %}
+            </div>
+            <div id="empty" class="empty" hidden><strong>Ничего не найдено</strong><span>Измените запрос или выберите другой статус.</span><button id="reset" type="button">Сбросить фильтры</button></div>
+        </div>
+        <aside id="details" class="details" aria-live="polite"></aside>
+    </section>
+    {% endif %}
+</main>
+<footer>Сопоставление по нормализованным ФИО и специальности. «Возможно совпадение» всегда требует ручной проверки.</footer>
+<script id="doctors-data" type="application/json">{{ doctors|tojson }}</script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

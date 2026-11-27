@@ -1,0 +1,8 @@
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      MEDICAL_API_KEY: ${MEDICAL_API_KEY:?Добавьте MEDICAL_API_KEY в файл .env}
+    restart: unless-stopped
